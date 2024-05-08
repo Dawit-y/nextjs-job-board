@@ -1,28 +1,65 @@
-import prisma from "@/lib/prisma";
-import JobListItem from "@/components/jobListItem";
 import JobFilterSideBar from "@/components/JobFilterSideBar";
+import JobResults from "@/components/JobResults";
 import H1 from "@/components/ui/h1";
+import { JobFilterValues } from "@/lib/validation";
+import { Metadata } from "next";
 
-export default async function Home() {
-  const jobs = await prisma.job.findMany({
-    where: { approved: true },
-    orderBy: { createdAt: "desc" },
-  });
+interface PageProps {
+  searchParams: {
+    q?: string;
+    type?: string;
+    location?: string;
+    remote?: string;
+  };
+}
+
+const getTitle = ({ q, type, remote, location }: JobFilterValues) => {
+  const titlePrefix = q
+    ? `${q} jobs`
+    : type
+      ? `${type} developer jobs`
+      : remote
+        ? "Remote developer jobs"
+        : "All developer jobs";
+
+  const titleSuffix = location ? ` in ${location}` : "";
+
+  return `${titlePrefix}${titleSuffix}`;
+};
+
+export function generateMetadata({
+  searchParams: { q, type, location, remote },
+}: PageProps): Metadata {
+  return {
+    title: `${getTitle({
+      q,
+      type,
+      location,
+      remote: remote === "true",
+    })} | Flow Jobs`,
+  };
+}
+
+export default async function Home({
+  searchParams: { q, type, location, remote },
+}: PageProps) {
+  const filterValues: JobFilterValues = {
+    q,
+    type,
+    location,
+    remote: remote === "true",
+  };
 
   return (
     <>
       <main className="max-w-2xl m-auto my-10 space-y-10 px-3">
         <div className="space-y-5 text-center">
-          <H1>Developer Jobs</H1>
+          <H1>{getTitle(filterValues)}</H1>
           <p className="text-muted-foreground">Find Your Dream Job</p>
         </div>
         <section className="flex flex-col gap-4 md:flex-row">
-          <JobFilterSideBar />
-          <div className="space-y-4 flex-grow">
-            {jobs.map((job) => {
-              return <JobListItem job={job} key={job.id} />;
-            })}
-          </div>
+          <JobFilterSideBar defaultValues={filterValues} />
+          <JobResults filterValues={filterValues} />
         </section>
       </main>
     </>
